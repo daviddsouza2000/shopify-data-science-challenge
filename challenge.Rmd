@@ -1,0 +1,81 @@
+---
+title: "Fall 2021 Data Science Intern Challenge"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+First, I will put the data into a dataframe and determine the calculation that caused AOV to be $3145.13. 
+
+```{r}
+m <-  read.csv("C:/Users/DAVID/Documents/shopify_data_science/data.csv")
+summary(m)
+n = length(m$order_id)
+```
+The means of the order_amount and total_items seem to be heavily skewed due to large outliers. The calculation of Average Order Value is calculated: $AOV = \frac{Revenue}{Number\ of\ Orders}$
+
+```{r}
+revenue = sum(m$order_amount)
+revenue
+aov = revenue / n
+aov
+```
+So, the AOV was calculated summing up all the order_amounts and divided it by the total number of orders. But looking carefully at the data, we can see if there are any outliers. I wil check for any orders with a large quantity of total_items.
+
+```{r}
+length(m[m$total_items > 10, ]$order_id)
+m[m$total_items > 10, ]
+```
+Looking at orders where the total_items are greater than 10, we see that there is a single user made mass orders of 2000 items from the same shop 17 times throughout the 30 days. This single user's orders are what is caused our naive calculation of AOV to be so high. We can filter this user's orders out and see if we get a more expected AOV.
+
+```{r}
+m2 = m[m$total_items < 10, ]
+n2 = length(m2$order_id)
+revenue2= sum(m2$order_amount)
+revenue2
+aov2 = revenue2 / n2
+aov2
+```
+After removing the outliers from the dataset, we calculate a much more expected AOV of $754.09. We can report this value with a note of the large orders placed by the individual.
+
+## Question 2
+
+### a. How many orders were shipped by Speedy Express in total?
+
+```{sql eval=FALSE}
+SELECT COUNT(*) FROM Shippers JOIN Orders ON Shippers.ShipperID = Orders.ShipperID
+WHERE ShipperName = 'Speedy Express';
+```
+
+Answer: 54
+
+### b. What is the last name of the employee with the most orders?
+
+```{sql eval=FALSE}
+WITH f as
+(WITH e as 
+(SELECT EmployeeID, COUNT(*) AS NumOfOrders FROM Orders GROUP BY EmployeeID) 
+SELECT EmployeeID, MAX(NumOfOrders) FROM e) 
+SELECT LastName FROM Employees JOIN f ON Employees.EmployeeID = f.EmployeeID;
+```
+
+Answer: Peacock
+
+### c. What product was ordered the most by customers in Germany?
+
+```{sql eval=FALSE}
+WITH f AS
+(WITH e AS 
+(SELECT * FROM OrderDetails WHERE OrderID IN
+(SELECT OrderID FROM Customers JOIN Orders ON Customers.CustomerID = Orders.CustomerID 
+WHERE Country='Germany'))
+SELECT ProductID, SUM(Quantity) AS NumOfOrders FROM e 
+GROUP BY ProductID ORDER BY NumOfOrders DESC LIMIT 1)
+SELECT ProductName FROM Products JOIN f ON f.ProductID = Products.ProductID
+```
+
+Answer: Boston Crab Meat
